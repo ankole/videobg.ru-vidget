@@ -10,7 +10,7 @@ const domainConfigs = {
       type: 'fixed',
       left: '20px',
       bottom: '70px',
-      width: '200px'
+      width: '120px'
     },
     playButton: {
       color: '#1CCDC8',

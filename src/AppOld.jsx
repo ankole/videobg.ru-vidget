@@ -42,47 +42,69 @@ const CloseIcon = ({ color, size }) => (
 
 export default function App({ config }) {
   const videoRef = useRef(null);
-  const modalVideoRef = useRef(null);
   const [isHovered, setIsHovered] = useState(false);
-  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [wasPlayingBeforeFullscreen, setWasPlayingBeforeFullscreen] = useState(false);
   const [isClosed, setIsClosed] = useState(() => {
+    // Проверяем localStorage при инициализации
     return localStorage.getItem('videoWidgetClosed') === 'true';
   });
 
-  const handleModalOpen = () => {
-    setIsModalOpen(true);
-    if (videoRef.current) {
-      videoRef.current.pause();
+  const handleFullscreenClick = async () => {
+    if (!videoRef.current) return;
+    
+    try {
+      setWasPlayingBeforeFullscreen(!videoRef.current.paused);
+      
+      if (videoRef.current.requestFullscreen) {
+        await videoRef.current.requestFullscreen();
+      } else if (videoRef.current.webkitRequestFullscreen) {
+        await videoRef.current.webkitRequestFullscreen();
+      } else if (videoRef.current.msRequestFullscreen) {
+        await videoRef.current.msRequestFullscreen();
+      }
+
+      videoRef.current.muted = false;
+      videoRef.current.currentTime = 0;
+      videoRef.current.play();
+    } catch (err) {
+      console.error('Fullscreen error:', err);
     }
   };
 
-  const handleModalClose = () => {
-    setIsModalOpen(false);
-    if (videoRef.current && !isClosed) {
-      videoRef.current.play();
+  const handleFullscreenChange = () => {
+    if (!document.fullscreenElement && 
+        !document.webkitFullscreenElement && 
+        !document.msFullscreenElement) {
+      if (videoRef.current) {
+        videoRef.current.muted = true;
+        if (!wasPlayingBeforeFullscreen) {
+          videoRef.current.pause();
+        }
+      }
     }
   };
 
   const handleCloseClick = (e) => {
-    e.stopPropagation();
+    e.stopPropagation(); // Предотвращаем срабатывание клика на видео
     setIsClosed(true);
+    // Сохраняем состояние в localStorage
     localStorage.setItem('videoWidgetClosed', 'true');
-    if (isModalOpen) {
-      handleModalClose();
-    }
   };
 
   useEffect(() => {
-    if (isModalOpen && modalVideoRef.current) {
-      // Всегда начинаем воспроизведение с начала
-      modalVideoRef.current.currentTime = 0;
-      modalVideoRef.current.muted = false;
-      modalVideoRef.current.play().catch(e => console.error('Play error:', e));
-    }
-  }, [isModalOpen]);
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
+    document.addEventListener('msfullscreenchange', handleFullscreenChange);
+
+    return () => {
+      document.removeEventListener('fullscreenchange', handleFullscreenChange);
+      document.removeEventListener('webkitfullscreenchange', handleFullscreenChange);
+      document.removeEventListener('msfullscreenchange', handleFullscreenChange);
+    };
+  }, [wasPlayingBeforeFullscreen]);
 
   if (isClosed) {
-    return null;
+    return null; // Не рендерим виджет, если он закрыт
   }
 
   const styles = {
@@ -131,47 +153,6 @@ export default function App({ config }) {
       ':hover': {
         backgroundColor: 'rgba(0, 0, 0, 0.7)'
       }
-    },
-    modalOverlay: {
-      position: 'fixed',
-      top: 0,
-      left: 0,
-      right: 0,
-      bottom: 0,
-      backgroundColor: 'rgba(0, 0, 0, 0.8)',
-      display: 'flex',
-      justifyContent: 'center',
-      alignItems: 'center',
-      zIndex: 1000,
-    },
-    modalContent: {
-      position: 'relative',
-      width: '80%',
-      maxWidth: '800px',
-      maxHeight: '90vh',
-    },
-    modalVideo: {
-      width: '100%',
-      height: 'auto',
-      borderRadius: '8px',
-    },
-    modalCloseButton: {
-      position: 'absolute',
-      top: '-40px',
-      right: '0',
-      color: '#fff',
-      fontSize: '24px',
-      cursor: 'pointer',
-      backgroundColor: 'rgba(0, 0, 0, 0.5)',
-      borderRadius: '50%',
-      width: '32px',
-      height: '32px',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      ':hover': {
-        backgroundColor: 'rgba(0, 0, 0, 0.7)'
-      }
     }
   };
 
@@ -181,7 +162,6 @@ export default function App({ config }) {
         style={styles.videoContainer}
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
-        onClick={handleModalOpen}
       >
         <video
           ref={videoRef}
@@ -191,6 +171,7 @@ export default function App({ config }) {
           loop
           playsInline
           style={styles.cornerVideo}
+          onClick={handleFullscreenClick}
         />
         
         <div style={styles.playButton}>
@@ -211,28 +192,6 @@ export default function App({ config }) {
           </div>
         )}
       </div>
-
-      {isModalOpen && (
-        <div style={styles.modalOverlay} onClick={handleModalClose}>
-          <div style={styles.modalContent} onClick={(e) => e.stopPropagation()}>
-            <video
-              ref={modalVideoRef}
-              src={config.videoUrl}
-              controls
-              loop
-              playsInline
-              style={styles.modalVideo}
-            />
-            <div 
-              style={styles.modalCloseButton} 
-              onClick={handleModalClose}
-              title="Закрыть"
-            >
-              <CloseIcon color="#ffffff" size="20px" />
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
