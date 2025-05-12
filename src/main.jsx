@@ -5,7 +5,7 @@ import App from './App.jsx'
 // Конфигурация для разных доменов
 const domainConfigs = {
   'f-med.pro': {
-    videoUrl: 'https://videobg.ru/vidget/data/video/f-med/IMG_5160.mp4',
+    videoUrl: 'https://videobg.ru/vidget/data/video/f-med-2/IMG_9547.mp4',
     position: {
       type: 'fixed',
       left: '20px',
